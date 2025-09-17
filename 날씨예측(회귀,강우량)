@@ -1,0 +1,129 @@
+import pandas as pd
+from sklearn.model_selection import train_test_split
+from sklearn.tree import DecisionTreeRegressor
+from sklearn.ensemble import RandomForestRegressor
+from sklearn.linear_model import LinearRegression
+from sklearn.neighbors import KNeighborsRegressor
+from sklearn.metrics import mean_squared_error, r2_score, mean_absolute_error
+from sklearn.preprocessing import LabelEncoder
+import numpy as np
+
+# -----------------------------
+# 1) 데이터 준비
+# -----------------------------
+df = pd.read_csv("/content/drive/MyDrive/weather.csv")
+print(f"원본 데이터 크기: {df.shape}")
+
+# -----------------------------
+# 2) 결측치 제거
+# -----------------------------
+print("\n=== 결측치 제거 ===")
+df = df.dropna()
+print(f"결측치 제거 후 데이터 크기: {df.shape}")
+
+# -----------------------------
+# 3) 불필요한 컬럼 제거 및 날짜 처리
+# -----------------------------
+# 'Location' 컬럼 제거 (있는 경우에만)
+if 'Location' in df.columns:
+    df = df.drop(columns=['Location'])
+
+# 'Date' 컬럼을 날짜 타입으로 변환 후 년, 월, 일로 분리
+if 'Date' in df.columns:
+    df['Date'] = pd.to_datetime(df['Date'])
+    df['Year'] = df['Date'].dt.year
+    df['Month'] = df['Date'].dt.month
+    df['Day'] = df['Date'].dt.day
+    df = df.drop(columns=['Date'])
+
+# -----------------------------
+# 4) 강우량 컬럼 확인
+# -----------------------------
+# 목표 변수 설정
+target_col = None
+if 'Rainfall' in df.columns:
+    target_col = 'Rainfall'
+else:
+    rainfall_cols = [col for col in df.columns if 'rain' in col.lower() or 'rainfall' in col.lower()]
+    if rainfall_cols:
+        target_col = rainfall_cols[0]
+
+# -----------------------------
+# 5) Label Encoding
+# -----------------------------
+label_encoders = {}
+for column in df.columns:
+    if df[column].dtype == 'object':
+        label_encoders[column] = LabelEncoder()
+        df[column] = label_encoders[column].fit_transform(df[column])
+
+# -----------------------------
+# 6) 입력과 출력 분리
+# -----------------------------
+X = df.drop(columns=[target_col])
+y = df[target_col]
+
+# -----------------------------
+# 7) 훈련과 테스트 데이터 분리
+# -----------------------------
+X_train, X_test, y_train, y_test = train_test_split(
+    X, y, test_size=0.2, random_state=42
+)
+
+# -----------------------------
+# 8) 회귀 모델 구성 및 학습
+# -----------------------------
+knn_reg = KNeighborsRegressor(n_neighbors=5)
+dt_reg = DecisionTreeRegressor(random_state=42)
+rf_reg = RandomForestRegressor(n_estimators=200, random_state=42)
+lr_reg = LinearRegression()
+
+knn_reg.fit(X_train, y_train)
+dt_reg.fit(X_train, y_train)
+rf_reg.fit(X_train, y_train)
+lr_reg.fit(X_train, y_train)
+
+# -----------------------------
+# 9) 예측 및 평가
+# -----------------------------
+knn_y_pred = knn_reg.predict(X_test)
+dt_y_pred = dt_reg.predict(X_test)
+rf_y_pred = rf_reg.predict(X_test)
+lr_y_pred = lr_reg.predict(X_test)
+
+# 성능 평가
+knn_rmse = np.sqrt(mean_squared_error(y_test, knn_y_pred))
+knn_mae = mean_absolute_error(y_test, knn_y_pred)
+knn_r2 = r2_score(y_test, knn_y_pred)
+
+dt_rmse = np.sqrt(mean_squared_error(y_test, dt_y_pred))
+dt_mae = mean_absolute_error(y_test, dt_y_pred)
+dt_r2 = r2_score(y_test, dt_y_pred)
+
+rf_rmse = np.sqrt(mean_squared_error(y_test, rf_y_pred))
+rf_mae = mean_absolute_error(y_test, rf_y_pred)
+rf_r2 = r2_score(y_test, rf_y_pred)
+
+lr_rmse = np.sqrt(mean_squared_error(y_test, lr_y_pred))
+lr_mae = mean_absolute_error(y_test, lr_y_pred)
+lr_r2 = r2_score(y_test, lr_y_pred)
+
+print("=== KNN Regression Results ===")
+print(f"RMSE: {knn_rmse:.4f}")
+print(f"MAE: {knn_mae:.4f}")
+print(f"R² Score: {knn_r2:.4f}")
+
+print("\n=== Decision Tree Regression Results ===")
+print(f"RMSE: {dt_rmse:.4f}")
+print(f"MAE: {dt_mae:.4f}")
+print(f"R² Score: {dt_r2:.4f}")
+
+print("\n=== Random Forest Regression Results ===")
+print(f"RMSE: {rf_rmse:.4f}")
+print(f"MAE: {rf_mae:.4f}")
+print(f"R² Score: {rf_r2:.4f}")
+
+print("\n=== Linear Regression Results ===")
+print(f"RMSE: {lr_rmse:.4f}")
+print(f"MAE: {lr_mae:.4f}")
+print(f"R² Score: {lr_r2:.4f}")
