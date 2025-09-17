@@ -1,89 +1,86 @@
 import pandas as pd
-import seaborn as sns
-import matplotlib.pyplot as plt
-
-# 1. Scikit-Learn 라이브러리에서 필요한 도구들 불러오기
 from sklearn.model_selection import train_test_split
-from sklearn.preprocessing import LabelEncoder, StandardScaler
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.linear_model import LogisticRegression
+from sklearn.neighbors import KNeighborsClassifier
 from sklearn.metrics import accuracy_score, confusion_matrix
+from sklearn.preprocessing import LabelEncoder
 
-# ---------------------------------
-# 2. 데이터 준비 및 탐색 (EDA)
-# ---------------------------------
+# -----------------------------
+# 1) 데이터 준비
+# -----------------------------
+df = pd.read_excel("/content/drive/MyDrive/Raisin_Dataset.xlsx")
 
-# Colab에 업로드된 Excel 파일을 불러옵니다.
-file_path = "/content/drive/MyDrive/Raisin_Dataset.xlsx"
-df = pd.read_excel(file_path)
+# -----------------------------
+# 2) 결측치 제거
+# -----------------------------
+df = df.dropna()
 
-print("--- 데이터 샘플 확인 ---")
-print(df.head())
+# -----------------------------
+# 3) Label Encoding
+# -----------------------------
+label_encoders = {}
+for column in df.columns:
+    if df[column].dtype == 'object':
+        label_encoders[column] = LabelEncoder()
+        df[column] = label_encoders[column].fit_transform(df[column])
 
-print("\n--- 데이터 기본 정보 ---")
-df.info()
+# -----------------------------
+# 4) 입력과 출력 분리
+# -----------------------------
+X = df.drop(columns=['Class'])
+y = df['Class']
 
-print("\n--- 품종별 데이터 개수 확인 ---")
-print(df['Class'].value_counts())
-
-# 품종별 데이터 개수 시각화
-sns.countplot(data=df, x='Class')
-plt.title('Raisin Class Distribution')
-plt.show()
-
-# ---------------------------------
-# 3. 데이터 전처리
-# ---------------------------------
-
-# 입력(X)과 정답(y) 데이터 분리
-X = df.drop(columns=['Class'])  # 'Class' 컬럼을 제외한 나머지를 X에 저장
-y = df['Class']                 # 'Class' 컬럼만 y에 저장
-
-# 정답(y) 데이터의 문자열을 숫자로 변환 (e.g., 'Besni' -> 0, 'Kecimen' -> 1)
-le = LabelEncoder()
-y_encoded = le.fit_transform(y)
-
-# 입력(X) 데이터의 스케일을 표준화합니다. (모델 성능 향상에 도움)
-scaler = StandardScaler()
-X_scaled = scaler.fit_transform(X)
-
-# ---------------------------------
-# 4. 훈련 및 테스트 데이터 분리
-# ---------------------------------
-
+# -----------------------------
+# 5) 훈련과 테스트 데이터 분리
+# -----------------------------
 X_train, X_test, y_train, y_test = train_test_split(
-    X_scaled, y_encoded,  # 스케일링된 X와 숫자로 바뀐 y
-    test_size=0.2,        # 테스트 데이터 비율 20%
-    stratify=y_encoded,   # 원본 데이터의 품종 비율을 유지하며 분리
-    random_state=42       # 재현성을 위한 시드 고정
+    X, y, test_size=0.2, stratify=y, random_state=42
 )
 
-# ---------------------------------
-# 5. 모델 학습 및 평가
-# ---------------------------------
+# -----------------------------
+# 6) 모델 구성 및 학습
+# -----------------------------
+knn = KNeighborsClassifier(n_neighbors=5)
+dt = DecisionTreeClassifier(random_state=42)
+rf = RandomForestClassifier(n_estimators=200, random_state=42)
+lr = LogisticRegression(max_iter=500)
 
-# 비교할 모델들을 딕셔너리 형태로 준비
-models = {
-    'Decision Tree': DecisionTreeClassifier(random_state=42),
-    'Random Forest': RandomForestClassifier(n_estimators=100, random_state=42),
-    'Logistic Regression': LogisticRegression()
-}
+knn.fit(X_train, y_train)
+dt.fit(X_train, y_train)
+rf.fit(X_train, y_train)
+lr.fit(X_train, y_train)
 
-# 반복문을 통해 각 모델을 학습하고 평가 결과를 출력
-for name, model in models.items():
-    # 모델 학습
-    model.fit(X_train, y_train)
+# -----------------------------
+# 7) 예측 및 평가
+# -----------------------------
+knn_y_pred = knn.predict(X_test)
+dt_y_pred = dt.predict(X_test)
+rf_y_pred = rf.predict(X_test)
+lr_y_pred = lr.predict(X_test)
 
-    # 예측
-    y_pred = model.predict(X_test)
+knn_acc = accuracy_score(y_test, knn_y_pred)
+dt_acc = accuracy_score(y_test, dt_y_pred)
+rf_acc = accuracy_score(y_test, rf_y_pred)
+lr_acc = accuracy_score(y_test, lr_y_pred)
 
-    # 평가
-    accuracy = accuracy_score(y_test, y_pred)
-    cm = confusion_matrix(y_test, y_pred)
+print("=== KNN Test Accuracy ===")
+print(f"KNN : {knn_acc:.4f}")
+print("혼동 행렬 (Confusion Matrix):")
+print(confusion_matrix(y_test, knn_y_pred))
 
-    # 결과 출력
-    print(f"\n===== {name} 모델 평가 결과 =====")
-    print(f"정확도 (Accuracy): {accuracy:.4f}")
-    print("혼동 행렬 (Confusion Matrix):")
-    print(cm)
+print("\n=== DT Test Accuracy ===")
+print(f"Decision Tree : {dt_acc:.4f}")
+print("혼동 행렬 (Confusion Matrix):")
+print(confusion_matrix(y_test, dt_y_pred))
+
+print("\n=== RF Test Accuracy ===")
+print(f"Random Forest : {rf_acc:.4f}")
+print("혼동 행렬 (Confusion Matrix):")
+print(confusion_matrix(y_test, rf_y_pred))
+
+print("\n=== LR Test Accuracy ===")
+print(f"Logistic Reg. : {lr_acc:.4f}")
+print("혼동 행렬 (Confusion Matrix):")
+print(confusion_matrix(y_test, lr_y_pred))
